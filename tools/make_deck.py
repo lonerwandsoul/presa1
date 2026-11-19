@@ -1,4 +1,4 @@
-"""Generate the 1+1 pop-zine slides (Pillow, python-pptx, DejaVu)."""
+"""Generate the 1+1 film-club slides (Pillow, python-pptx, DejaVu)."""
 from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter, ImageChops
 from pptx import Presentation
 from pptx.util import Inches, Pt
@@ -8,7 +8,7 @@ from io import BytesIO
 from functools import lru_cache
 import math, random, zipfile, xml.etree.ElementTree as ET
 ROOT=Path(__file__).resolve().parents[1]; assets=ROOT/'pres'; K=1.5; W,H=1280,720
-ink='#1C1425';milk='#FFF5E6';pink='#FF86C8';hot='#FF408F';lime='#D6FF48';blue='#4138D3';lilac='#C2B3FF';orange='#FF8353'; mint='#A0EECC'
+ink='#142C35';milk='#FAF5EA';pink='#FF86C8';hot='#FF408F';lime='#D6FF48';blue='#4138D3';lilac='#C2B3FF';orange='#FF8353'; mint='#A0EECC'
 R=Presentation();R.slide_width=Inches(13+1/3);R.slide_height=Inches(7.5);pages=[]
 def sc(*a):return tuple(round(v*K) for v in a)
 @lru_cache(None)
@@ -63,51 +63,50 @@ def end():
     for x,y,t,sz,c in captions:
         w=font(sz,'b').getlength(t)/K; assert x+w<1278,(t,w)
         a=s.shapes.add_textbox(Inches(x/96),Inches((y-sz*.18)/96), Inches((w+34)/96), Inches(sz*1.6/96));fr=a.text_frame;fr.word_wrap=False;fr.margin_top=fr.margin_left=fr.margin_right=fr.margin_bottom=0;p=fr.paragraphs[0];run=p.add_run();run.text=t;run.font.size=Pt(sz*.75);run.font.name='DejaVu Sans';run.font.color.rgb=RGBColor.from_string(c[1:]);text(x,y,t,sz,c,'b')
-    pages.append(im)
-# Each spread is a self-contained visual joke. No timecodes or presenter prompts.
-def full(name,center=(.5,.5)):
-    im.paste(ImageOps.fit(Image.open(assets/(name+'.jpeg')).convert('RGB'),im.size,centering=center), (0,0))
-def band(x,y,t,sz,bg,fg=ink,maxw=1170):
-    while font(sz,'h').getlength(t)/K>maxw-40:sz-=1
-    w=font(sz,'h').getlength(t)/K; rect(x,y,w+38,sz*1.36+12,bg);text(x+18,y+12,t,sz,fg)
-def wave(x,y,n,c):
-    for i in range(n):
-        h=6+55*abs(math.sin(i*.41)*math.cos(i*.12));rect(x+9*i,y-h/2,5,h,c)
-# 01: poster
-begin(pink);ell(676,-93,778,778,lime);dots(927,0,365,716,ink);checker(0,652,80,4,18,ink,milk);text(35,102,'1+1',221);sticker(45,37,'ФРАНЦИЯ • 2011',milk,3,17);cutout(645,37,720);star(1170,114,59,hot,.18);star(709,129,44,blue,.22);title(43,337,['Когда вам','доверили','одну колонку'],56,73,623);rect(0,686,1280,34,ink);text(43,696,'ОЛИВЬЕ НАКАШ  ×  ЭРИК ТОЛЕДАНО',16,milk,'m');end()
-# 02: opposing music profiles
-begin(lilac);text(40,44,'Два админа плейлиста',63,mw=1195)
-for x,img,name,actor,tag,desc,c,ctr in [(46,'philip','Филипп','Франсуа Клюзе','Ставит классику','Слышит первую скрипку.',pink,(.55,.36)),(654,'driss','Дрисс','Омар Си','Ставит фанк','Слышит, где вступает бас.',lime,(.6,.4))]:
-    rect(x+9,154,571,511,ink);rect(x,145,571,511,ink);rect(x+3,148,565,505,c);pic(img,x+14,160,540,273,ctr=ctr,frame=False);sticker(x+29,406,tag,milk,4,18);text(x+22,487,name,49);text(x+24,557,actor.upper(),17,ink,'m');body(x+25,603,[desc],23)
+    pages.append(im);s.notes_slide.notes_text_frame.text=notes[len(pages)]
+# Notes follow the supplied speaking script. The slide surface is deliberately concise.
+ns={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main'};notes={};n=0
+with zipfile.ZipFile(next(assets.glob('*.docx'))) as z:root=ET.fromstring(z.read('word/document.xml'))
+for p in root.findall('.//w:p',ns):
+    t=''.join(e.text or '' for e in p.findall('.//w:t',ns))
+    if t.startswith('Слайд '):n=int(t.split()[1].rstrip('.'));notes[n]=''
+    elif t=='ПОРЯДОК ДЕЙСТВИЙ':break
+    elif n and t.startswith(('Сказать:', 'Видео №', 'Рефлексия:', 'Вопрос аудитории:', 'Заключительный вопрос:', 'Выслушать')):notes[n]+=('\n\n' if notes[n] else '')+t.replace('Видео №','Ориентир в фильме №')
+aqua='#A3DDCA';orange='#FF9869';stone='#DADACF';ochre='#E6B84E';teal='#215C59'
+def mast(section,fg=ink):
+    text(43,32,'1+1',22,fg);text(135,35,section.upper(),16,fg,'m');text(1131,35,f'{len(pages)+1:02} / 12',16,fg,'m');line([(43,72),(1236,72)],fg,1)
+def image(name,x,y,w,h,ctr=(.5,.5),bottom=1):
+    a=Image.open(assets/(name+'.jpeg')).convert('RGB');a=a.crop((0,0,a.width,round(a.height*bottom)));im.paste(ImageOps.fit(a,sc(w,h),method=Image.Resampling.LANCZOS,centering=ctr),sc(x,y))
+def label(x,y,t,bg):
+    w=font(16,'m').getlength(t)/K+28;rect(x,y,w,33,bg);text(x+14,y+9,t,16,ink,'m')
+def plus(x,y,sz,c):rect(x-sz/2,y-sz*.105,sz,sz*.21,c);rect(x-sz*.105,y-sz/2,sz*.21,sz,c)
+def wax(x,y,r,c):
+    ell(x-r,y-r,2*r,2*r,ink)
+    for v in (.46,.58,.68,.77,.85,.92):ell(x-r*v,y-r*v,r*v*2,r*v*2,None,'#536870',1)
+    ell(x-r*.3,y-r*.3,r*.6,r*.6,c);ell(x-4,y-4,8,8,ink)
+# I. People
+begin(ink);ell(699,-40,730,730,orange);cutout(649,34,716);text(43,44,'ФРАНЦИЯ   /   2011',17,milk,'m');text(31,114,'1+1',223,milk);title(47,391,['Дружба на слух','и в цвете'],52,67,647,orange);body(49,569,['Как Филипп и Дрисс знакомят друг друга','с музыкой и живописью'],24,milk);rect(0,669,1280,51,ink);text(48,689,'РЕЖИССЁРЫ   /   ОЛИВЬЕ НАКАШ И ЭРИК ТОЛЕДАНО',16,milk,'m');end()
+begin(milk);mast('Герои');text(41,106,'Два взгляда на культуру',52,mw=1190)
+for x,name,hero,actor,ss,c in [(43,'philip','Филипп','Франсуа Клюзе',['Ценит камерную музыку и живопись.','Нанимает Дрисса помощником.'],orange),(655,'driss','Дрисс','Омар Си',['Говорит прямо, любит фанк.','На празднике первым выйдет танцевать.'],aqua)]:
+    image(name,x,198,579,260,(.58,.39));rect(x,458,579,87,c);text(x+17,478,hero,37);text(x+19,568,actor.upper(),17,teal,'m');body(x+18,611,ss,22)
 end()
-# 03: expectation / reality
-begin(lime);pic('sowmestkadr1',-40,80,832,545,3,(.47,.48));star(760,110,64,pink,.15);sticker(64,602,'СОБЕСЕДОВАНИЕ',milk,4,20);title(864,129,['Зашёл','на пять','минут.'],47,60,374);rect(862,366,95,9,hot);title(863,424,['Вышел','в главной','роли.'],44,57,367);end()
-# 04: a symphonic concert bill before the switch
-begin(ink);record(1073,357,373,pink);pic('довключениямузыки',572,83,565,448,-3,(.50,.45));sticker(48,75,'ДЕНЬ РОЖДЕНИЯ ФИЛИППА',lilac,4,17);title(46,228,['Обещали','камерную','вечеринку.'],52,69,536,milk);band(47,536,'Привели оркестр.',31,lime,maxw=512);end()
-# 05: screenshot-sized dance meme
-begin(ink);full('послевключениямузыки',(.46,.4));band(685,52,'Я: сегодня без танцев.',38,milk,maxw=550);band(36,591,'Я через три ноты Boogie Wonderland:',37,lime,maxw=1192);end()
-# 06: two cuts of the same dance become a reaction meme
-begin(pink);text(42,51,'Стадии одного припева',58,mw=1180)
-for x,img,t,c,ctr in [(43,'довключениямузыки','Я только послушаю.',milk,(.5,.42)),(652,'послевключениямузыки','Подержи мой пиджак.',lime,(.44,.36))]:
-    rect(x+8,163,572,480,ink);rect(x,155,572,480,c);pic(img,x+10,165,552,360,ctr=ctr,frame=False);text(x+19,563,t,29,mw=535)
+begin(ink);mast('Знакомство',milk);image('продажа картины',43,108,705,485,(.47,.45));label(43,593,'— И ДОЛГО ЭТО БУДЕТ?   — ЧЕТЫРЕ ЧАСА.',orange);title(790,143,['Началось','с работы.'],49,65,436,milk);body(792,337,['Филипп ищет помощника,','Дриссу нужна подпись.','Они начинают проводить время','вместе — и становятся друзьями.'],23,milk);rect(792,511,64,7,orange);body(792,555,['Оперу они слушают по-разному.','Смеются в ложе уже вместе.'],21,orange);end()
+# II. Involvement in a shared event
+begin(milk);mast('01   /   День рождения');image('довключениямузыки',539,98,701,568,(.56,.43));label(48,141,'ДО   /   КЛАССИКА',orange);title(43,233,['Вечер','по нотам'],57,76,470);body(48,453,['В честь Филиппа выступают','музыканты. Гости слушают,','но Дриссу не хватает движения.'],23);end()
+begin(ink);mast('01   /   День рождения',milk);wax(249,413,239,orange);image('послевключениямузыки',43,146,557,366,(.40,.42));label(43,512,'BOOGIE WONDERLAND',orange);title(653,156,['Дрисс выходит','танцевать'],49,65,583,milk);body(657,353,['Он меняет музыку и начинает сам.','Гостям не нужно ждать приглашения:','они видят движение и подхватывают его.'],23,milk);rect(656,535,524,2,orange);text(656,567,'ПОСЛЕ   /   ТАНЦПОЛ',17,orange,'m');end()
+begin(milk);mast('01   /   Что сработало');title(43,108,['Приглашение без слов'],54,69,1192)
+for x,img,c,head,ss in [(43,'довключениямузыки',stone,'Риск',['Музыку сменили без спроса. Кому-то','могло хотелось дослушать классику.']),(655,'послевключениямузыки',orange,'Результат',['Гости включились в танец,','а Филипп улыбается.'])]:
+    if head=='Риск':ss=['Музыку сменили без спроса. Кто-то','мог хотеть дослушать классику.']
+    image(img,x,213,579,220,(.48,.31));rect(x,433,579,179,c);text(x+18,454,head,33);body(x+19,517,ss,22)
+body(46,655,['Дрисс предложил гостям не просто слушать музыку, а двигаться вместе с ним.'],22);end()
+begin(orange);mast('01   /   Вывод для организатора');title(42,152,['На одном','празднике —','разные гости'],51,72,606);wax(121,673,108,milk)
+for i,(h,t) in enumerate([('До вечера','Узнать, что любят слушать гости.'),('В программе','После концерта предложить танцы.'),('На танцполе','Пригласить всех, не тянуть за руку.')]):
+    y=144+i*160;line([(688,y),(1233,y)],ink,2);text(690,y+24,'0'+str(i+1),17,ink,'m');text(756,y+19,h,31,mw=463);body(756,y+80,[t],22)
 end()
-# 07: faux vinyl single, the bonus track
-begin(blue);record(987,370,364,lime);a=ImageOps.fit(Image.open(assets/'philip.jpeg'),sc(245,245),centering=(.64,.38));mask=Image.new('L',a.size);ImageDraw.Draw(mask).ellipse((0,0,a.width-1,a.height-1),255);im.paste(a,sc(864,247),mask);sticker(44,72,'БОНУС-ТРЕК',pink,4,19);title(41,190,['Филипп:','у меня дома','не клуб.'],57,78,614,milk);band(44,516,'Также Филипп: оставь.',29,lime,maxw=594);wave(53,647,58,pink);end()
-# 08: museum scene, image crop removes embedded subtitles
-begin(milk);src=Image.open(assets/'первыйфрагментнепониманияискусства.jpeg');src=src.crop((0,0,src.width,int(src.height*.78)));im.paste(ImageOps.fit(src,sc(1280,529)),(0,0));rect(0,529,1280,191,lilac);text(37,567,'Дрисс в галерее:',25,ink,'m');text(38,612,'«Я так тоже могу».',58,mw=1170);star(1138,623,57,hot,.15);end()
-# 09: the punch line is the painting itself
-begin(lime);sticker(45,44,'ДРИСС ДОМА',pink,4,20);title(42,180,['Опасная','стадия:'],60,81,509);band(42,398,'реально смог.',37,ink,milk,maxw=496)
-for j,c in enumerate([hot,lilac,blue]):line([(627+170*j,640),(766+170*j,60)],c,44)
-pic('созданиекартины',591,113,577,424,-4,(.52,.48));end()
-# 10: sales receipt meme
-begin(pink);pic('продажа картины',43,90,665,422,2,(.52,.37));band(44,576,'Моё лицо после первого заказа',25,ink,milk,maxw=680);rect(773,79,454,535,ink);rect(762,67,454,535,milk)
-for i in range(18):poly([(762+i*25,601),(774+i*25,615),(787+i*25,601)],milk)
-text(790,108,'ЧЕК 001  /  ЖИВОПИСЬ',17,ink,'m');line([(790,152),(1187,152)],ink);text(790,190,'«Я так тоже могу»',24,mw=392);text(792,258,'1 шт.',22,ink,'m');line([(790,314),(1187,314)],ink);text(790,345,'ИТОГО',18,ink,'m');text(784,390,'11 000 €',63,mw=404);rng=random.Random(11);x=792
-while x<1184:
-    w=rng.choice([2,3,5,7]);rect(x,520,w,44,ink);x+=w+rng.choice([2,4,6])
-end()
-# 11: old/new artist bio
-begin(lilac);text(41,57,'Обновил описание профиля',53,mw=1190);pic('driss',40,158,587,430,-3,(.64,.5));rect(707,203,501,128,milk);text(731,225,'БЫЛО',17,ink,'m');text(730,266,'Не шарю в арте',30,mw=453);line([(735,286),(1158,281)],hot,5);rect(707,360,501,184,lime);text(732,386,'СТАЛО',17,ink,'m');title(731,428,['По заказам','в личку.'],38,50,446);star(1181,581,54,blue,.1);end()
-# 12: reflection in a single visual callback
-begin(ink);pic('sowmestkadr3',702,65,486,455,-5,(.49,.45));star(1178,598,54,lime,.19);sticker(47,70,'1+1',pink,5,22);title(45,191,['Плейлисты','так и не','совпали.'],56,76,636,milk);band(44,523,'Зато люди совпали.',40,lime,maxw=653);end()
-R.core_properties.title='1+1. Когда вам доверили одну колонку';R.save(ROOT/'1plus1.pptx');pages[0].save(ROOT/'1plus1.pdf',save_all=True,append_images=pages[1:],quality=93,resolution=144)
+# III. From looking at art to making it
+begin(milk);mast('02   /   В галерее');image('первыйфрагментнепониманияискусства',43,105,710,491,(.49,.47),.79);label(43,596,'АБСТРАКТНАЯ ЖИВОПИСЬ',aqua);title(791,175,['Один холст,','два взгляда'],40,60,443);body(793,367,['Филипп видит в картине ценность.','Дрисса удивляет цена: ему кажется,','что так нарисовать легко.'],22);plus(1193,610,69,aqua);end()
+begin(aqua);mast('02   /   В мастерской');title(43,155,['Из зрителя','в автора'],56,79,536);body(48,388,['После похода в галерею Дрисс','сам берётся за кисть. Теперь он','не оценивает чужую работу,','а решает, что делать со своей.'],23);rect(623,139,568,406,teal);image('созданиекартины',642,117,578,407,(.49,.43));label(644,547,'РАБОТА ДРИССА',milk);end()
+begin(ink);mast('02   /   Признание',milk);image('продажа картины',43,124,609,425,(.48,.46));text(44,572,'ФИЛИПП СООБЩАЕТ О ПРОДАЖЕ',16,milk,'m');text(700,193,'11 000',96,aqua,mw=524);text(708,317,'ЕВРО',40,milk);line([(710,408),(1220,408)],aqua);body(710,456,['За столько Филипп продал картину Дрисса.','Ещё недавно Дрисс шутил о живописи,','а теперь у его работы есть покупатель.'],22,milk);end()
+begin(milk);mast('02   /   Вывод');title(43,115,['Как поддержать интерес'],53,65,1195);rect(43,221,527,352,stone);rect(591,221,644,352,aqua);text(66,252,'РИСК',17,ink,'m');title(64,320,['Объяснять,','что любить'],38,54,470);body(67,460,['Спор о «правильном» вкусе легко','отбивает желание продолжать.'],22);text(618,252,'ДРУГОЙ ПУТЬ',17,ink,'m');title(616,320,['Дать кисть','и свободу'],38,54,584);body(619,460,['Начать с того, что человек уже заметил.','Предложить попробовать, не ставя оценки.'],22);body(44,631,['Дрисса заинтересовал не разговор о технике, а возможность самому смешивать краски.'],23);end()
+begin(teal);mast('Рефлексия',milk);image('sowmestkadr3',785,118,448,410,(.5,.4));title(42,158,['Не обязательно','любить одно','и то же.'],57,73,708,milk);body(46,446,['Дрисс первым вышел танцевать.','Филипп всерьёз отнёсся к картине друга.'],25,milk);line([(44,577),(1233,577)],aqua,2);body(47,617,['В обоих эпизодах один открыл другому возможность, но оставил за ним выбор.'],25,milk);end()
+R.core_properties.title='1+1. Дружба на слух и в цвете';R.save(ROOT/'1plus1.pptx');pages[0].save(ROOT/'1plus1.pdf',save_all=True,append_images=pages[1:],quality=93,resolution=144)
